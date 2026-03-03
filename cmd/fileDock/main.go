@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/handler"
+	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -24,8 +25,8 @@ func main() {
 	router := gin.Default()
 	router.POST("/sign-up", handler.SignUp)
 	router.POST("/sign-in", handler.SignIn)
-	router.POST("/upload", handler.UploadFile)
-	router.GET("/files", handler.GetFiles)
+	router.POST("/upload", middleware.AuthMiddleware(), handler.UploadFile)
+	router.GET("/files", middleware.AuthMiddleware(), handler.GetFiles)
 	router.Run(":8080")
 
 }
