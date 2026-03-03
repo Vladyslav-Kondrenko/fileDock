@@ -1,6 +1,14 @@
 package storage
 
-func SignUp() {
+import (
+	"context"
+	"fmt"
+
+	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
+)
+
+func SignUp(ctx context.Context, credentials filedock.UserCredentials) {
+	fmt.Println(credentials)
 	panic("signUp not implemented")
 }
 
