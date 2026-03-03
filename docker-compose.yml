@@ -1,0 +1,27 @@
+services:
+  filedock:
+    build: .
+    container_name: filedock
+    ports:
+      - "8080:8080"
+    env_file:
+    - .env
+    environment:
+      DATABASE_URL: mongodb://root:example@mongo:27017/filedock?authSource=admin
+    depends_on:
+      - mongo
+    restart: on-failure
+
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

@@ -1,0 +1,34 @@
+# Go build artifacts
+bin/
+cmd/**/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Vendored dependencies (use go modules instead)
+vendor/
+
+# Logs
+*.log
+
+# Coverage files
+coverage.*
+coverage/
+*.coverprofile
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+.DS_Store
