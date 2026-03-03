@@ -27,7 +27,27 @@ func SignUp(c *gin.Context) {
 }
 
 func SignIn(c *gin.Context) {
-	storage.SignIn()
+	var credentials filedock.UserCredentials
+
+	if err := c.ShouldBindJSON(&credentials); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	hash, err := passwords.HashPassword(credentials.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	credentials.Password = hash
+
+	token, err := storage.SignIn(c.Request.Context(), credentials)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"token": token})
+
 }
 
 func UploadFile(c *gin.Context) {
