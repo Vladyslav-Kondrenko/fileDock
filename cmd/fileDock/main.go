@@ -23,6 +23,14 @@ func main() {
 	}
 	defer db.Disconnect(ctx)
 
+	s3Client, err := storage.NewS3Client(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := s3Client.EnsureBucket(ctx); err != nil {
+		log.Fatal("ensure bucket: ", err)
+	}
+
 	router := gin.Default()
 	router.POST("/sign-up", handler.SignUp)
 	router.POST("/sign-in", handler.SignIn)

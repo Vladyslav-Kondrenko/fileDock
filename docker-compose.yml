@@ -10,6 +10,7 @@ services:
       DATABASE_URL: mongodb://root:example@mongo:27017/filedock?authSource=admin
     depends_on:
       - mongo
+      - minio
     restart: on-failure
 
   mongo:
@@ -23,5 +24,20 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"      # API
+      - "9001:9001"      # Web Console
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_SECRET: ${MINIO_SECRET_KEY}
+    command: server /data
+    volumes:
+      - minio_data:/data
 volumes:
   mongo_data:
+  minio_data:
