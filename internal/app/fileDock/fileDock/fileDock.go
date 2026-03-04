@@ -1,11 +1,16 @@
 package filedock
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type User struct {
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Email     string             `json:"email" bson:"email"`
+	Password  string             `json:"-" bson:"password"`
+	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 }
 
 type UserCredentials struct {

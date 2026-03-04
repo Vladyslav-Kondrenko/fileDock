@@ -28,8 +28,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		claims := token.Claims.(jwt.MapClaims)
-		// TODO replace with user id after implementation of DB
-		c.Set("email", claims["sub"])
+		c.Set("user_id", claims["sub"])
 		c.Next()
 	}
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -24,7 +25,16 @@ func SignUp(c *gin.Context) {
 	}
 	credentials.Password = hash
 
-	storage.SignUp(c.Request.Context(), credentials)
+	err = storage.SignUp(c.Request.Context(), credentials)
+	if err != nil {
+		if errors.Is(err, storage.ErrEmailExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"user": "user created successfully"})
 }
 
 func SignIn(c *gin.Context) {
@@ -35,15 +45,12 @@ func SignIn(c *gin.Context) {
 		return
 	}
 
-	hash, err := passwords.HashPassword(credentials.Password)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	credentials.Password = hash
-
 	token, err := storage.SignIn(c.Request.Context(), credentials)
 	if err != nil {
+		if errors.Is(err, storage.ErrInvalidCredentials) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -57,7 +64,7 @@ func UploadFile(c *gin.Context) {
 }
 
 func GetFiles(c *gin.Context) {
-	email := c.GetString("email")
-	fmt.Println("email", email)
+	userID := c.GetString("user_id")
+	fmt.Println("userID", userID)
 	storage.GetFiles()
 }
