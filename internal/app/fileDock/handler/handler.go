@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
@@ -51,9 +52,12 @@ func SignIn(c *gin.Context) {
 }
 
 func UploadFile(c *gin.Context) {
+
 	storage.UploadFile()
 }
 
 func GetFiles(c *gin.Context) {
+	email := c.GetString("email")
+	fmt.Println("email", email)
 	storage.GetFiles()
 }

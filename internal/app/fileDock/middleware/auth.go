@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("AuthMiddleware")
 		tokenString := c.GetHeader("Authorization")
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
@@ -29,6 +27,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
+		claims := token.Claims.(jwt.MapClaims)
+		// TODO replace with user id after implementation of DB
+		c.Set("email", claims["sub"])
 		c.Next()
 	}
 }

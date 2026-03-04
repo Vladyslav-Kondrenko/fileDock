@@ -10,7 +10,36 @@ import (
 
 	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var usersColl *mongo.Collection
+var filesColl *mongo.Collection
+
+func InitDB(ctx context.Context) (*mongo.Client, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("DATABASE_URL")))
+
+	if err != nil {
+		return nil, err
+	}
+
+	db := client.Database("fileDock")
+	usersColl = db.Collection("users")
+	filesColl = db.Collection("files")
+
+	idx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+	_, err = usersColl.Indexes().CreateOne(ctx, idx)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
 
 func SignUp(ctx context.Context, credentials filedock.UserCredentials) {
 	fmt.Println(credentials)
