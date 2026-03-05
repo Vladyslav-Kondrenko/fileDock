@@ -1,4 +1,4 @@
-package filedock
+package model
 
 import (
 	"time"
@@ -11,11 +11,6 @@ type User struct {
 	Email     string             `json:"email" bson:"email"`
 	Password  string             `json:"-" bson:"password"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
-}
-
-type UserCredentials struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
 }
 
 type File struct {

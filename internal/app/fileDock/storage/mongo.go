@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
+	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/model"
 	"github.com/Vladyslav-Kondrenko/fileDock/internal/pkg/passwords"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
@@ -45,10 +45,10 @@ func InitDB(ctx context.Context) (*mongo.Client, error) {
 	return client, nil
 }
 
-func SignUp(ctx context.Context, credentials filedock.UserCredentials) error {
-	user := filedock.User{
-		Email:     credentials.Email,
-		Password:  credentials.Password,
+func SignUp(ctx context.Context, email, password string) error {
+	user := model.User{
+		Email:     email,
+		Password:  password,
 		CreatedAt: time.Now(),
 	}
 
@@ -65,7 +65,7 @@ func SignUp(ctx context.Context, credentials filedock.UserCredentials) error {
 	return nil
 }
 
-func SignIn(ctx context.Context, credentials filedock.UserCredentials) (string, error) {
+func SignIn(ctx context.Context, email, password string) (string, error) {
 
 	ttl := os.Getenv("TTL")
 	if ttl == "" {
@@ -77,8 +77,8 @@ func SignIn(ctx context.Context, credentials filedock.UserCredentials) (string, 
 		return "", errors.New("TTL is not a number")
 	}
 
-	user := filedock.User{}
-	err = usersColl.FindOne(ctx, bson.M{"email": credentials.Email}).Decode(&user)
+	user := model.User{}
+	err = usersColl.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return "", ErrInvalidCredentials
@@ -86,7 +86,7 @@ func SignIn(ctx context.Context, credentials filedock.UserCredentials) (string, 
 		return "", err
 	}
 
-	if !passwords.CheckPasswordHash(credentials.Password, user.Password) {
+	if !passwords.CheckPasswordHash(password, user.Password) {
 		return "", ErrInvalidCredentials
 	}
 
@@ -103,10 +103,10 @@ func SignIn(ctx context.Context, credentials filedock.UserCredentials) (string, 
 	return tokenString, nil
 }
 
-func SaveFile(ctx context.Context, file filedock.File) (filedock.File, error) {
+func SaveFile(ctx context.Context, file model.File) (model.File, error) {
 	result, err := filesColl.InsertOne(ctx, file)
 	if err != nil {
-		return filedock.File{}, err
+		return model.File{}, err
 	}
 	file.ID = result.InsertedID.(primitive.ObjectID)
 	return file, nil
@@ -117,16 +117,16 @@ func DeleteFile(ctx context.Context, id primitive.ObjectID) error {
 	return err
 }
 
-func GetFiles(ctx context.Context, userId primitive.ObjectID) ([]filedock.File, error) {
-	cursor, err := filesColl.Find(ctx, bson.M{"user_id": userId})
+func GetFiles(ctx context.Context, userID primitive.ObjectID) ([]model.File, error) {
+	cursor, err := filesColl.Find(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	files := []filedock.File{}
+	files := []model.File{}
 	for cursor.Next(ctx) {
-		var file filedock.File
+		var file model.File
 		err = cursor.Decode(&file)
 		if err != nil {
 			return nil, err

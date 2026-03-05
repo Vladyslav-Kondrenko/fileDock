@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
+	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/model"
 	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/storage"
 	"github.com/Vladyslav-Kondrenko/fileDock/internal/pkg/passwords"
 	"github.com/gin-gonic/gin"
@@ -16,11 +16,11 @@ import (
 )
 
 type StorageService interface {
-	SignUp(ctx *gin.Context, credentials filedock.UserCredentials) error
-	SignIn(ctx *gin.Context, credentials filedock.UserCredentials) (string, error)
-	SaveFile(ctx *gin.Context, file filedock.File) (filedock.File, error)
+	SignUp(ctx *gin.Context, email, password string) error
+	SignIn(ctx *gin.Context, email, password string) (string, error)
+	SaveFile(ctx *gin.Context, file model.File) (model.File, error)
 	DeleteFile(ctx *gin.Context, id primitive.ObjectID) error
-	GetFiles(ctx *gin.Context, userID primitive.ObjectID) ([]filedock.File, error)
+	GetFiles(ctx *gin.Context, userID primitive.ObjectID) ([]model.File, error)
 }
 
 type PasswordService interface {
@@ -42,15 +42,15 @@ type Handler struct {
 
 type storageAdapter struct{}
 
-func (storageAdapter) SignUp(c *gin.Context, credentials filedock.UserCredentials) error {
-	return storage.SignUp(c.Request.Context(), credentials)
+func (storageAdapter) SignUp(c *gin.Context, email, password string) error {
+	return storage.SignUp(c.Request.Context(), email, password)
 }
 
-func (storageAdapter) SignIn(c *gin.Context, credentials filedock.UserCredentials) (string, error) {
-	return storage.SignIn(c.Request.Context(), credentials)
+func (storageAdapter) SignIn(c *gin.Context, email, password string) (string, error) {
+	return storage.SignIn(c.Request.Context(), email, password)
 }
 
-func (storageAdapter) SaveFile(c *gin.Context, file filedock.File) (filedock.File, error) {
+func (storageAdapter) SaveFile(c *gin.Context, file model.File) (model.File, error) {
 	return storage.SaveFile(c.Request.Context(), file)
 }
 
@@ -58,7 +58,7 @@ func (storageAdapter) DeleteFile(c *gin.Context, id primitive.ObjectID) error {
 	return storage.DeleteFile(c.Request.Context(), id)
 }
 
-func (storageAdapter) GetFiles(c *gin.Context, userID primitive.ObjectID) ([]filedock.File, error) {
+func (storageAdapter) GetFiles(c *gin.Context, userID primitive.ObjectID) ([]model.File, error) {
 	return storage.GetFiles(c.Request.Context(), userID)
 }
 
@@ -119,7 +119,7 @@ func GetFiles(c *gin.Context) {
 }
 
 func (h *Handler) SignUp(c *gin.Context) {
-	var credentials filedock.UserCredentials
+	var credentials AuthCredentials
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -132,7 +132,7 @@ func (h *Handler) SignUp(c *gin.Context) {
 	}
 	credentials.Password = hash
 
-	err = h.storage.SignUp(c, credentials)
+	err = h.storage.SignUp(c, credentials.Email, credentials.Password)
 	if err != nil {
 		if errors.Is(err, storage.ErrEmailExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
@@ -145,14 +145,14 @@ func (h *Handler) SignUp(c *gin.Context) {
 }
 
 func (h *Handler) SignIn(c *gin.Context) {
-	var credentials filedock.UserCredentials
+	var credentials AuthCredentials
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	token, err := h.storage.SignIn(c, credentials)
+	token, err := h.storage.SignIn(c, credentials.Email, credentials.Password)
 	if err != nil {
 		if errors.Is(err, storage.ErrInvalidCredentials) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -206,7 +206,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 		return
 	}
 
-	savedFile, err := h.storage.SaveFile(c, filedock.File{
+	savedFile, err := h.storage.SaveFile(c, model.File{
 		UserID:    oid,
 		FileName:  filename,
 		FileSize:  file.Size,

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	filedock "github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/fileDock"
+	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/model"
 	"github.com/Vladyslav-Kondrenko/fileDock/internal/app/fileDock/storage"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -185,30 +185,30 @@ func mustNewUploadRequest(t *testing.T, filename string, content []byte, content
 }
 
 type mockStorage struct {
-	signUpFn   func(*gin.Context, filedock.UserCredentials) error
-	signInFn   func(*gin.Context, filedock.UserCredentials) (string, error)
-	saveFileFn func(*gin.Context, filedock.File) (filedock.File, error)
+	signUpFn   func(*gin.Context, string, string) error
+	signInFn   func(*gin.Context, string, string) (string, error)
+	saveFileFn func(*gin.Context, model.File) (model.File, error)
 	deleteFile func(*gin.Context, primitive.ObjectID) error
-	getFilesFn func(*gin.Context, primitive.ObjectID) ([]filedock.File, error)
+	getFilesFn func(*gin.Context, primitive.ObjectID) ([]model.File, error)
 }
 
-func (m mockStorage) SignUp(c *gin.Context, credentials filedock.UserCredentials) error {
+func (m mockStorage) SignUp(c *gin.Context, email, password string) error {
 	if m.signUpFn == nil {
 		return nil
 	}
-	return m.signUpFn(c, credentials)
+	return m.signUpFn(c, email, password)
 }
 
-func (m mockStorage) SignIn(c *gin.Context, credentials filedock.UserCredentials) (string, error) {
+func (m mockStorage) SignIn(c *gin.Context, email, password string) (string, error) {
 	if m.signInFn == nil {
 		return "", nil
 	}
-	return m.signInFn(c, credentials)
+	return m.signInFn(c, email, password)
 }
 
-func (m mockStorage) SaveFile(c *gin.Context, file filedock.File) (filedock.File, error) {
+func (m mockStorage) SaveFile(c *gin.Context, file model.File) (model.File, error) {
 	if m.saveFileFn == nil {
-		return filedock.File{}, nil
+		return model.File{}, nil
 	}
 	return m.saveFileFn(c, file)
 }
@@ -220,7 +220,7 @@ func (m mockStorage) DeleteFile(c *gin.Context, id primitive.ObjectID) error {
 	return m.deleteFile(c, id)
 }
 
-func (m mockStorage) GetFiles(c *gin.Context, userID primitive.ObjectID) ([]filedock.File, error) {
+func (m mockStorage) GetFiles(c *gin.Context, userID primitive.ObjectID) ([]model.File, error) {
 	if m.getFilesFn == nil {
 		return nil, nil
 	}
@@ -262,8 +262,8 @@ func TestSignIn_Success_WithInjectedStorage(t *testing.T) {
 
 	h := New(
 		mockStorage{
-			signInFn: func(_ *gin.Context, credentials filedock.UserCredentials) (string, error) {
-				if credentials.Email != "test@example.com" {
+			signInFn: func(_ *gin.Context, email, _ string) (string, error) {
+				if email != "test@example.com" {
 					return "", storage.ErrInvalidCredentials
 				}
 				return "signed-token", nil
@@ -297,7 +297,7 @@ func TestUploadFile_UploadError_TriggersDelete(t *testing.T) {
 	fileID := primitive.NewObjectID()
 	h := New(
 		mockStorage{
-			saveFileFn: func(_ *gin.Context, file filedock.File) (filedock.File, error) {
+			saveFileFn: func(_ *gin.Context, file model.File) (model.File, error) {
 				file.ID = fileID
 				return file, nil
 			},
@@ -365,7 +365,7 @@ func TestSignUp_EmailExists(t *testing.T) {
 
 	h := New(
 		mockStorage{
-			signUpFn: func(_ *gin.Context, _ filedock.UserCredentials) error {
+			signUpFn: func(_ *gin.Context, _, _ string) error {
 				return storage.ErrEmailExists
 			},
 		},
@@ -397,10 +397,10 @@ func TestSignUp_Success_UsesHashedPassword(t *testing.T) {
 	storageCalled := false
 	h := New(
 		mockStorage{
-			signUpFn: func(_ *gin.Context, credentials filedock.UserCredentials) error {
+			signUpFn: func(_ *gin.Context, _, password string) error {
 				storageCalled = true
-				if credentials.Password != "hashed-password123" {
-					t.Fatalf("expected hashed password, got %q", credentials.Password)
+				if password != "hashed-password123" {
+					t.Fatalf("expected hashed password, got %q", password)
 				}
 				return nil
 			},
@@ -435,7 +435,7 @@ func TestSignIn_InvalidCredentials(t *testing.T) {
 
 	h := New(
 		mockStorage{
-			signInFn: func(_ *gin.Context, _ filedock.UserCredentials) (string, error) {
+			signInFn: func(_ *gin.Context, _, _ string) (string, error) {
 				return "", storage.ErrInvalidCredentials
 			},
 		},
@@ -462,7 +462,7 @@ func TestSignIn_InternalError(t *testing.T) {
 
 	h := New(
 		mockStorage{
-			signInFn: func(_ *gin.Context, _ filedock.UserCredentials) (string, error) {
+			signInFn: func(_ *gin.Context, _, _ string) (string, error) {
 				return "", errors.New("db down")
 			},
 		},
@@ -490,11 +490,11 @@ func TestGetFiles_Success(t *testing.T) {
 	userID := primitive.NewObjectID()
 	h := New(
 		mockStorage{
-			getFilesFn: func(_ *gin.Context, gotUserID primitive.ObjectID) ([]filedock.File, error) {
+			getFilesFn: func(_ *gin.Context, gotUserID primitive.ObjectID) ([]model.File, error) {
 				if gotUserID != userID {
 					t.Fatalf("expected user id %s, got %s", userID.Hex(), gotUserID.Hex())
 				}
-				return []filedock.File{{FileName: "a.png"}}, nil
+				return []model.File{{FileName: "a.png"}}, nil
 			},
 		},
 		mockPassword{},
@@ -522,7 +522,7 @@ func TestGetFiles_StorageError(t *testing.T) {
 
 	h := New(
 		mockStorage{
-			getFilesFn: func(_ *gin.Context, _ primitive.ObjectID) ([]filedock.File, error) {
+			getFilesFn: func(_ *gin.Context, _ primitive.ObjectID) ([]model.File, error) {
 				return nil, errors.New("db failed")
 			},
 		},
@@ -551,7 +551,7 @@ func TestUploadFile_Success(t *testing.T) {
 	uploadCalled := false
 	h := New(
 		mockStorage{
-			saveFileFn: func(_ *gin.Context, file filedock.File) (filedock.File, error) {
+			saveFileFn: func(_ *gin.Context, file model.File) (model.File, error) {
 				if file.UserID != userID {
 					t.Fatalf("expected user id %s, got %s", userID.Hex(), file.UserID.Hex())
 				}
