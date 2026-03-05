@@ -32,10 +32,11 @@ func main() {
 	}
 
 	router := gin.Default()
-	router.POST("/sign-up", handler.SignUp)
-	router.POST("/sign-in", handler.SignIn)
-	router.POST("/upload", middleware.AuthMiddleware(), handler.UploadFile)
-	router.GET("/files", middleware.AuthMiddleware(), handler.GetFiles)
+	h := handler.NewDefault()
+	router.POST("/sign-up", h.SignUp)
+	router.POST("/sign-in", h.SignIn)
+	router.POST("/upload", middleware.AuthMiddleware(), h.UploadFile)
+	router.GET("/files", middleware.AuthMiddleware(), h.GetFiles)
 	router.Run(":8080")
 
 }
