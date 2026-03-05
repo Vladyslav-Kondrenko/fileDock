@@ -593,3 +593,132 @@ func TestUploadFile_Success(t *testing.T) {
 		t.Fatalf("expected generated filename in response body, got: %s", w.Body.String())
 	}
 }
+
+func TestSignUp_StorageError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := New(
+		mockStorage{
+			signUpFn: func(_ *gin.Context, _, _ string) error {
+				return errors.New("db write failed")
+			},
+		},
+		mockPassword{
+			hashFn: func(password string) (string, error) {
+				return "hashed-" + password, nil
+			},
+		},
+		mockS3{},
+	)
+
+	router := gin.New()
+	router.POST("/sign-up", h.SignUp)
+
+	req := httptest.NewRequest(http.MethodPost, "/sign-up", bytes.NewBufferString(`{"email":"test@example.com","password":"password123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestUploadFile_SaveFileError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := New(
+		mockStorage{
+			saveFileFn: func(_ *gin.Context, _ model.File) (model.File, error) {
+				return model.File{}, errors.New("save failed")
+			},
+		},
+		mockPassword{},
+		mockS3{},
+	)
+
+	router := gin.New()
+	router.POST("/upload", setUserIDMiddleware(primitive.NewObjectID().Hex()), h.UploadFile)
+
+	req := mustNewUploadRequest(t, "image.png", []byte{1, 2, 3}, "image/png")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestUploadFile_DeleteErrorStillReturnsUploadError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	deleteCalled := false
+	fileID := primitive.NewObjectID()
+	h := New(
+		mockStorage{
+			saveFileFn: func(_ *gin.Context, file model.File) (model.File, error) {
+				file.ID = fileID
+				return file, nil
+			},
+			deleteFile: func(_ *gin.Context, _ primitive.ObjectID) error {
+				deleteCalled = true
+				return errors.New("delete failed")
+			},
+		},
+		mockPassword{},
+		mockS3{
+			uploadFn: func(_ *gin.Context, _ string, _ io.Reader, _ int64, _ string) error {
+				return errors.New("upload failed")
+			},
+		},
+	)
+
+	router := gin.New()
+	router.POST("/upload", setUserIDMiddleware(primitive.NewObjectID().Hex()), h.UploadFile)
+
+	req := mustNewUploadRequest(t, "image.png", []byte{1, 2, 3}, "image/png")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+	if !deleteCalled {
+		t.Fatal("expected delete file to be called")
+	}
+	if !strings.Contains(w.Body.String(), "upload failed") {
+		t.Fatalf("expected upload error in response body, got: %s", w.Body.String())
+	}
+}
+
+func TestGetFiles_EmptyList(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := New(
+		mockStorage{
+			getFilesFn: func(_ *gin.Context, _ primitive.ObjectID) ([]model.File, error) {
+				return []model.File{}, nil
+			},
+		},
+		mockPassword{},
+		mockS3{},
+	)
+
+	router := gin.New()
+	router.GET("/files", setUserIDMiddleware(primitive.NewObjectID().Hex()), h.GetFiles)
+
+	req := httptest.NewRequest(http.MethodGet, "/files", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `"files":[]`) {
+		t.Fatalf("expected empty files array, got: %s", w.Body.String())
+	}
+}
