@@ -34,7 +34,7 @@ services:
       - .env
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_SECRET: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     command: server /data
     volumes:
       - minio_data:/data

@@ -23,11 +23,11 @@ func main() {
 	}
 	defer db.Disconnect(ctx)
 
-	s3Client, err := storage.NewS3Client(ctx)
+	storage.DefaultS3Client, err = storage.NewS3Client(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := s3Client.EnsureBucket(ctx); err != nil {
+	if err := storage.DefaultS3Client.EnsureBucket(ctx); err != nil {
 		log.Fatal("ensure bucket: ", err)
 	}
 
