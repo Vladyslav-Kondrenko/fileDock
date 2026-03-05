@@ -16,6 +16,8 @@ type S3Client struct {
 	bucket string
 }
 
+var DefaultS3Client *S3Client
+
 func NewS3Client(ctx context.Context) (*S3Client, error) {
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	accessKey := os.Getenv("MINIO_ACCESS_KEY")

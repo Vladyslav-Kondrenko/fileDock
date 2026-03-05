@@ -103,10 +103,36 @@ func SignIn(ctx context.Context, credentials filedock.UserCredentials) (string, 
 	return tokenString, nil
 }
 
-func UploadFile() {
-	panic("uploadFile not implemented")
+func SaveFile(ctx context.Context, file filedock.File) (filedock.File, error) {
+	result, err := filesColl.InsertOne(ctx, file)
+	if err != nil {
+		return filedock.File{}, err
+	}
+	file.ID = result.InsertedID.(primitive.ObjectID)
+	return file, nil
 }
 
-func GetFiles() {
-	panic("getFiles not implemented")
+func DeleteFile(ctx context.Context, id primitive.ObjectID) error {
+	_, err := filesColl.DeleteOne(ctx, bson.M{"_id": id})
+	return err
+}
+
+func GetFiles(ctx context.Context, userId primitive.ObjectID) ([]filedock.File, error) {
+	cursor, err := filesColl.Find(ctx, bson.M{"user_id": userId})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	files := []filedock.File{}
+	for cursor.Next(ctx) {
+		var file filedock.File
+		err = cursor.Decode(&file)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+
+	return files, nil
 }
